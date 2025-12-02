@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>家用物品管家</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    :root {
+      --primary: #4A90E2;
+      --bg: #f9f9f9;
+      --card-bg: white;
+      --border: #ddd;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      padding: 16px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin: 16px 0;
+      font-size: 1.5em;
+    }
+    .section {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 16px; /* 防止 iOS Safari 缩放 */
+    }
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-row button {
+      width: auto;
+      flex: 1;
+    }
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .item-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .item-image {
+      max-width: 80px;
+      height: auto;
+      display: block;
+      margin-bottom: 8px;
+      border-radius: 8px;
+    }
+    .item-info {
+      font-size: 0.95em;
+    }
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .actions button {
+      padding: 6px 10px;
+      font-size: 14px;
+      width: auto;
+    }
+    .preview-container {
+      margin-top: 8px;
+    }
+    .preview-container img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      display: block;
+    }
+    .stats-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .stats-btns button {
+      flex: 1;
+      min-width: 100px;
+    }
+    @media (max-width: 480px) {
+      .item-info-line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .item-info-line > div {
+        flex: 1 1 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🏠 家庭物品管理系统</h1>
+
+  <div class="section">
+    <div class="form-group">
+      <label>物品名称（必填）</label>
+      <input id="name" type="text" placeholder="如：螺丝刀" />
+    </div>
+    <div class="form-group">
+      <label>数量（个）</label>
+      <input id="quantity" type="number" min="1" value="1" />
+    </div>
+    <div class="form-group">
+      <label>分类（可选）</label>
+      <input id="category" type="text" placeholder="如：工具" />
+    </div>
+    <div class="form-group">
+      <label>所在房间（必填）</label>
+      <select id="room" required></select>
+      <button type="button" id="add-room">➕ 新增房间</button>
+    </div>
+    <div class="form-group">
+      <label>容器（可选）</label>
+      <select id="container"></select>
+      <button type="button" id="add-container">➕ 新增容器</button>
+    </div>
+    <div class="form-group">
+      <label>层/格（可选）</label>
+      <input id="shelf" type="text" placeholder="如：第二层" />
+    </div>
+    <div class="form-group">
+      <label>具体位置描述（可选）</label>
+      <textarea id="description" rows="2" placeholder="如：红色工具箱内"></textarea>
+    </div>
+    <div class="form-group">
+      <label>📸 点击选择照片或拍照</label>
+      <input type="file" id="image-upload" accept="image/*" capture="environment" />
+      <div class="preview-container">
+        <img id="image-preview" style="display:none;" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>🏷️ 点击上传二维码图片（自动识别内容）</label>
+      <input type="file" id="barcode-upload" accept="image/*" />
+    </div>
+    <button id="save-item">➕ 添加物品</button>
+  </div>
+
+  <div class="section">
+    <div id="summary">共 0 项 | 总计 0 个</div>
+    <div class="btn-row">
+      <button id="export-data">📤 导出数据</button>
+      <button id="import-data">📥 导入数据</button>
+      <button id="clear-all">🗑️ 清空所有</button>
+    </div>
+    <div class="stats-btns">
+      <button id="chart-room">按房间分布</button>
+      <button id="chart-category">按分类分布</button>
+      <button id="chart-container">按容器分布</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="item-list" id="item-list"></div>
+  </div>
+
+  <!-- 编辑模态框（复用主表单） -->
+  <input type="hidden" id="editing-index" value="-1" />
+
+  <script>
+    // ========== 数据存储 ==========
+    let items = JSON.parse(localStorage.getItem('homeItems') || '[]');
+    let rooms = JSON.parse(localStorage.getItem('homeRooms') || '["客厅", "卧室", "厨房", "书房"]');
+    let containers = JSON.parse(localStorage.getItem('homeContainers') || '["抽屉", "柜子", "箱子"]');
+
+    // ========== DOM 元素 ==========
+    const el = {
+      name: document.getElementById('name'),
+      quantity: document.getElementById('quantity'),
+      category: document.getElementById('category'),
+      room: document.getElementById('room'),
+      container: document.getElementById('container'),
+      shelf: document.getElementById('shelf'),
+      description: document.getElementById('description'),
+      imageUpload: document.getElementById('image-upload'),
+      imagePreview: document.getElementById('image-preview'),
+      saveBtn: document.getElementById('save-item'),
+      summary: document.getElementById('summary'),
+      itemList: document.getElementById('item-list'),
+      editingIndex: document.getElementById('editing-index'),
+      addRoomBtn: document.getElementById('add-room'),
+      addContainerBtn: document.getElementById('add-container'),
+      exportBtn: document.getElementById('export-data'),
+      importBtn: document.getElementById('import-data'),
+      clearBtn: document.getElementById('clear-all')
+    };
+
+    // ========== 初始化 ==========
+    function init() {
+      renderRoomOptions();
+      renderContainerOptions();
+      renderItems();
+      updateSummary();
+      setupEventListeners();
+    }
+
+    function renderRoomOptions(selected = '') {
+      el.room.innerHTML = '';
+      rooms.forEach(room => {
+        const opt = document.createElement('option');
+        opt.value = room;
+        opt.textContent = room;
+        if (room === selected) opt.selected = true;
+        el.room.appendChild(opt);
+      });
+    }
+
+    function renderContainerOptions(selected = '') {
+      el.container.innerHTML = '<option value="">无</option>';
+      containers.forEach(container => {
+        const opt = document.createElement('option');
+        opt.value = container;
+        opt.textContent = container;
+        if (container === selected) opt.selected = true;
+        el.container.appendChild(opt);
+      });
+    }
+
+    function resetForm() {
+      el.name.value = '';
+      el.quantity.value = '1';
+      el.category.value = '';
+      el.shelf.value = '';
+      el.description.value = '';
+      el.imagePreview.style.display = 'none';
+      el.imagePreview.src = '';
+      el.editingIndex.value = '-1';
+      el.saveBtn.textContent = '➕ 添加物品';
+    }
+
+    // ========== 事件监听 ==========
+    function setupEventListeners() {
+      el.imageUpload.addEventListener('change', handleImageUpload);
+      el.addRoomBtn.addEventListener('click', addNewRoom);
+      el.addContainerBtn.addEventListener('click', addNewContainer);
+      el.saveBtn.addEventListener('click', saveItem);
+      el.exportBtn.addEventListener('click', exportData);
+      el.importBtn.addEventListener('click', importData);
+      el.clearBtn.addEventListener('click', clearAll);
+    }
+
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        el.imagePreview.src = event.target.result;
+        el.imagePreview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function addNewRoom() {
+      const newRoom = prompt('请输入新房间名称:');
+      if (newRoom && !rooms.includes(newRoom)) {
+        rooms.push(newRoom);
+        localStorage.setItem('homeRooms', JSON.stringify(rooms));
+        renderRoomOptions();
+      }
+    }
+
+    function addNewContainer() {
+      const newContainer = prompt('请输入新容器名称:');
+      if (newContainer && !containers.includes(newContainer)) {
+        containers.push(newContainer);
+        localStorage.setItem('homeContainers', JSON.stringify(containers));
+        renderContainerOptions();
+      }
+    }
+
+    function saveItem() {
+      const name = el.name.value.trim();
+      if (!name) {
+        alert('请填写物品名称');
+        return;
+      }
+      const item = {
+        name,
+        quantity: parseInt(el.quantity.value) || 1,
+        category: el.category.value.trim(),
+        room: el.room.value,
+        container: el.container.value || '',
+        shelf: el.shelf.value.trim(),
+        description: el.description.value.trim(),
+        image: el.imagePreview.src || ''
+      };
+
+      const index = parseInt(el.editingIndex.value);
+      if (index >= 0) {
+        items[index] = item;
+      } else {
+        items.push(item);
+      }
+      localStorage.setItem('homeItems', JSON.stringify(items));
+      renderItems();
+      updateSummary();
+      resetForm();
+    }
+
+    function editItem(index) {
+      const item = items[index];
+      el.name.value = item.name;
+      el.quantity.value = item.quantity;
+      el.category.value = item.category || '';
+      el.shelf.value = item.shelf || '';
+      el.description.value = item.description || '';
+
+      // 修复问题1：正确回填容器
+      renderRoomOptions(item.room);
+      renderContainerOptions(item.container);
+
+      // 修复问题3：重置并预览图片
+      if (item.image) {
+        el.imagePreview.src = item.image;
+        el.imagePreview.style.display = 'block';
+      } else {
+        el.imagePreview.style.display = 'none';
+      }
+
+      el.editingIndex.value = index;
+      el.saveBtn.textContent = '✅ 保存修改';
+
+      // 滚动到顶部
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteItem(index) {
+      if (confirm('确定删除此物品？')) {
+        items.splice(index, 1);
+        localStorage.setItem('homeItems', JSON.stringify(items));
+        renderItems();
+        updateSummary();
+      }
+    }
+
+    function renderItems() {
+      el.itemList.innerHTML = '';
+      items.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+          ${item.image ? `<img src="${item.image}" class="item-image" />` : ''}
+          <div class="item-info">
+            <div><strong>${item.name}</strong> × ${item.quantity}</div>
+            <div>分类: ${item.category || '—'}</div>
+            <div>位置: ${item.room}${item.container ? ' → ' + item.container : ''}${item.shelf ? ' / ' + item.shelf : ''}</div>
+            ${item.description ? `<div>描述: ${item.description}</div>` : ''}
+          </div>
+          <div class="actions">
+            <button onclick="editItem(${index})">✏️ 编辑</button>
+            <button onclick="deleteItem(${index})">🗑️ 删除</button>
+          </div>
+        `;
+        el.itemList.appendChild(card);
+      });
+    }
+
+    function updateSummary() {
+      const totalItems = items.length;
+      const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
+      el.summary.textContent = `共 ${totalItems} 项 | 总计 ${totalCount} 个`;
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify({ items, rooms, containers }, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'home-items-backup.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function importData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (data.items) {
+              items = data.items;
+              localStorage.setItem('homeItems', JSON.stringify(items));
+            }
+            if (data.rooms) {
+              rooms = data.rooms;
+              localStorage.setItem('homeRooms', JSON.stringify(rooms));
+              renderRoomOptions();
+            }
+            if (data.containers) {
+              containers = data.containers;
+              localStorage.setItem('homeContainers', JSON.stringify(containers));
+              renderContainerOptions();
+            }
+            renderItems();
+            updateSummary();
+            alert('导入成功！');
+          } catch (err) {
+            alert('导入失败：文件格式错误');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
+    function clearAll() {
+      if (confirm('清空所有物品？此操作不可恢复！')) {
+        items = [];
+        localStorage.setItem('homeItems', JSON.stringify(items));
+        renderItems();
+        updateSummary();
+      }
+    }
+
+    // 暴露函数给全局（用于 inline onclick）
+    window.editItem = editItem;
+    window.deleteItem = deleteItem;
+
+    // 启动
+    init();
+
+    // ========== PWA 注册 ==========
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.warn);
+      });
+    }
+  </script>
+</body>
+</html>
